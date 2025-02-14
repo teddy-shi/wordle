@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <link rel="stylesheet" href = "/static/css/style.css">
+            <header class ="header">
+                <h1 id = "Teddle-title"> Wordle </h1>
+                <div class="top_buttons">
+                    <button id="info">
+                        <img src="/static/images/info.png" alt='Info Image' width= 32px height= 32px>
+                    </button>
+                    <button id="stats">
+                        <img src="/static/images/stats.png" alt='Stats Image' width= 35px height= 35px>
+                    </button>
+                </div>
+            </header>
+        </head>
+        <body>
+            <div class="grid-container">
+                <h class = "cell" id="11"> &nbsp &nbsp</h>
+                <h class = "cell" id="12"> &nbsp &nbsp</h>
+                <h class = "cell" id="13"> &nbsp &nbsp</h>
+                <h class = "cell" id="14"> &nbsp &nbsp</h>
+                <h class = "cell" id="15"> &nbsp &nbsp</h>
+
+                <h class = "cell" id="21"> &nbsp &nbsp</h>
+                <h class = "cell" id="22"> &nbsp &nbsp</h>
+                <h class = "cell" id="23"> &nbsp &nbsp</h>
+                <h class = "cell" id="24"> &nbsp &nbsp</h>
+                <h class = "cell" id="25"> &nbsp &nbsp</h>
+
+                <h class = "cell" id="31"> &nbsp &nbsp</h>
+                <h class = "cell" id="32"> &nbsp &nbsp</h>
+                <h class = "cell" id="33"> &nbsp &nbsp</h>
+                <h class = "cell" id="34"> &nbsp &nbsp</h>
+                <h class = "cell" id="35"> &nbsp &nbsp</h>
+
+                <h class = "cell" id="41"> &nbsp &nbsp</h>
+                <h class = "cell" id="42"> &nbsp &nbsp</h>
+                <h class = "cell" id="43"> &nbsp &nbsp</h>
+                <h class = "cell" id="44"> &nbsp &nbsp</h>
+                <h class = "cell" id="45"> &nbsp &nbsp</h>
+
+                <h class = "cell" id="51"> &nbsp &nbsp</h>
+                <h class = "cell" id="52"> &nbsp &nbsp</h>
+                <h class = "cell" id="53"> &nbsp &nbsp</h>
+                <h class = "cell" id="54"> &nbsp &nbsp</h>
+                <h class = "cell" id="55"> &nbsp &nbsp</h>
+
+                <h class = "cell" id="61"> &nbsp &nbsp</h>
+                <h class = "cell" id="62"> &nbsp &nbsp</h>
+                <h class = "cell" id="63"> &nbsp &nbsp</h>
+                <h class = "cell" id="64"> &nbsp &nbsp</h>
+                <h class = "cell" id="65"> &nbsp &nbsp</h>
+            </div>
+            <div class="keyboard">
+                <div class = "keyboard_row">
+                    <button class = "key" id="Q"> Q</button>
+                    <button class = "key" id="W"> W</button>
+                    <button class = "key" id="E"> E</button>
+                    <button class = "key" id="R"> R</button>
+                    <button class = "key" id="T"> T</button>
+                    <button class = "key" id="Y"> Y</button>
+                    <button class = "key" id="U"> U</button>
+                    <button class = "key" id="I"> I</button>
+                    <button class = "key" id="O"> O</button>
+                    <button class = "key" id="P"> P</button>
+                </div>
+                <div class = "keyboard_row">
+                    <button class = "key" id="A"> A</button>
+                    <button class = "key" id="S"> S</button>
+                    <button class = "key" id="D"> D</button>
+                    <button class = "key" id="F"> F</button>
+                    <button class = "key" id="G"> G</button>
+                    <button class = "key" id="H"> H</button>
+                    <button class = "key" id="J"> J</button>
+                    <button class = "key" id="K"> K</button>
+                    <button class = "key" id="L"> L</button>
+                </div>
+                <div class = "keyboard_row">
+                    <button class = "key" id="ENTER"> ENTER</button>
+                    <button class = "key" id="Z"> Z</button>
+                    <button class = "key" id="X"> X</button>
+                    <button class = "key" id="C"> C</button>
+                    <button class = "key" id="V"> V</button>
+                    <button class = "key" id="B"> B</button>
+                    <button class = "key" id="N"> N</button>
+                    <button class = "key" id="M"> M</button>
+                    <button class = "key" id="DELETE"> 
+                        <img src ='/static/images/backspace.png' alt ='Backspace Image' width=30px height=25px>
+                    </button>
+                </div>
+            </div>
+            <!--<div class="infoPage">
+                <button class="infobody">
+                    <div class = "row">
+                        <label class="Title">
+                            How To Play
+                        </label>
+                    </div>
+                    <div class = "row">
+                        <label class="Line2">
+                            Guess the Wordle in 6 tries.
+                        </label>
+                    </div>
+                    <div class="row">
+                        <ul class="rules">
+                            <li>Each guess must be a valid 5-letter word.</li>
+                            <li>The color of the tiles will change to show how close your
+                                guess was to the word.
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="row">
+                        <label class="Examples"> Examples</label>
+                    </div>
+                    <div class="row">
+                        <div class="tempgrid">
+                            <h class = "ex_cell" id="1"> T</h>
+                            <h class = "ex_cell" id="2"> E</h>
+                            <h class = "ex_cell" id="3"> D</h>
+                            <h class = "ex_cell" id="4"> D</h>
+                            <h class = "ex_cell" id="5"> Y</h>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label class="expl_one"> <span class="bold">T</span>
+                            is in the word and in the correct spot.
+                        </label>
+                    </div>
+                    <div class="row">
+                        <div class="tempgrid">
+                            <h class = "ex_cell" id="6"> L</h>
+                            <h class = "ex_cell" id="7"> O</h>
+                            <h class = "ex_cell" id="8"> V</h>
+                            <h class = "ex_cell" id="9"> E</h>
+                            <h class = "ex_cell" id="10"> S</h>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label class="expl_two"> <span class="bold">O</span>
+                            is in the word but in the wrong spot.
+                        </label>
+                    </div>
+                    <div class="row">
+                        <div class="tempgrid">
+                            <h class = "ex_cell" id="11"> B</h>
+                            <h class = "ex_cell" id="12"> R</h>
+                            <h class = "ex_cell" id="13"> E</h>
+                            <h class = "ex_cell" id="14"> A</h>
+                            <h class = "ex_cell" id="15"> D</h>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <label class="expl_three"> <span class="bold">D</span>
+                            is not in the word in any spot.
+                        </label>
+                    </div> 
+                    <button class="closeInfo"> x </button>
+                </button>
+            </div>-->
+
+            <div class="alert-container">
+                <template id = 'alert-template'>
+                    <div class="alert">
+                        <span class="alert-message"></span>
+                    </div>
+                </template>
+            </div>
+
+
+        <script src="/static/js/script.js"></script>
+    </body>
+</html>

@@ -1,0 +1,161 @@
+body{
+    margin: 0;
+    background-color: #0f0f0f;
+    font-weight: bold;
+    font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+.header {
+    background-color: #0f0f0f;
+    display: flex;
+    align-items: center; 
+    justify-content: center; 
+    width: 100%; 
+    height: 60px;
+    border-bottom: 1px solid #2d2e2e;
+    margin: 0;
+    margin-bottom: 15px;
+    padding: 0 20px;
+    position: relative;
+}
+.top_buttons {
+    margin-left: auto;
+    display: flex;
+    gap: 5px;
+}
+.key{
+    width: 45px;
+    height: 60px;
+    border: 1px solid #0f0f0f;
+    font-size: 18px;
+    border-radius: 5px;
+    background-color: grey;
+    cursor: pointer;
+    user-select: none;
+    text-align: center;
+    margin: 1px;
+    color: white;
+    font-weight: bold;
+    font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+    align-items: center;
+}
+.keyboard_row{
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    padding: 2px;
+    align-items: center;
+}
+.cell{
+    background-color: #0f0f0f;
+    color: white;
+    font-size: 30px;
+    width: 40px;
+    height: 40px;
+    padding: 10px;
+    margin-bottom: 9px;
+    white-space: nowrap;
+    text-align: center;
+    user-select: none;
+    outline-color: #2d2e2e;
+    outline-style: solid;
+    outline-width: 2px;
+}
+.grid-container {
+    display: grid;
+    grid-column-gap: 30px;
+    grid-template-columns: repeat(5, 39px);
+    justify-content: center;
+    padding-bottom: 8px;
+}
+.alert {
+    padding: 15px;
+    margin: 5px;
+    border: 1px solid #ccc;
+    background-color: white;
+    color: #721c24;
+    border-radius: 4px;
+    position: relative;
+}
+.alert-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 300px;
+    z-index: 1000;
+}
+.infobody{
+    display: inline-block;
+    background-color:#282929;
+    color: white;
+    width: 400px;
+    height: 500px;
+    gap: 10px;
+}
+.Title{
+    font-style: bold;
+    font-size: 30px;
+}
+#ENTER{
+    width: 70px;
+    font-size: 12px;
+}
+#DELETE{
+    width: 65px;
+}
+#info{
+    background-color: #0f0f0f;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    padding: 0px;
+    color: white; 
+}
+#stats{
+    background-color: #0f0f0f;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    padding: 0px;
+    color: white; 
+    margin-right: 35px;
+}
+#Teddle-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #0f0f0f;
+    color: white;
+    font-family: 'Georgia','Clear Sans', 'Helvetica Neue', 'Arial', 'sans-serif';
+    font-size: 35px;
+    user-select: none;
+    margin: 0;
+    line-height: 60px;
+}
+.animate-grow-shrink{
+    animation: grow-shrink 0.1s forwards;
+}
+.animate-flip{
+    animation: flip 0.5s ease;
+}
+@keyframes grow-shrink {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+@keyframes flip{
+    0% {
+        transform: scaleY(1);
+    }
+    50% {
+        transform: scaleY(0);
+    }
+    100% {
+        transform: scaleY(1);
+    }
+}
