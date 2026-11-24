@@ -1,228 +1,482 @@
-var ans;
-var row;
-var col;
-var guess;
-var correct = '#4F7942';
-var partial = '#e3b127';
-var incorrect = '#2d2e2e';
-var map = new Map();
-var gameover = false;
-var keyboardArr = new Array(26).fill(-1);
-var ansDictionary;
-var dictionary;
-var checkingWord = false;
+import {
+  createElement as h,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import { createRoot } from "react-dom/client";
+import {
+  WORD_LENGTH,
+  MAX_GUESSES,
+  FLIP_DELAY,
+  FLIP_DURATION,
+  REVEAL_DURATION,
+  STATE_NAMES,
+  parseWords,
+  chooseAnswer,
+  createGame,
+  gameReducer,
+} from "./game.js";
+import {
+  loadStatistics,
+  saveStatistics,
+  recordResult,
+  winRate,
+} from "./statistics.js";
 
-onStart();
-reloadAfterStart();
+function Icon({ name, size = 28 }) {
+  const shapes = {
+    info: [
+      h("circle", { key: "circle", cx: 12, cy: 12, r: 9 }),
+      h("path", { key: "stem", d: "M12 11v6" }),
+      h("circle", {
+        key: "dot",
+        cx: 12,
+        cy: 7.5,
+        r: 0.75,
+        fill: "currentColor",
+        stroke: "none",
+      }),
+    ],
+    stats: [
+      h("path", { key: "bars", d: "M4 21V11h5v10m0 0V3h6v18m0 0V7h5v14H4" }),
+    ],
+    backspace: [
+      h("path", {
+        key: "outline",
+        d: "M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-7-7 7-7Z",
+      }),
+      h("path", { key: "cross", d: "m12 9 6 6m0-6-6 6" }),
+    ],
+  };
+  return h(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 1.8,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": true,
+      focusable: "false",
+    },
+    shapes[name],
+  );
+}
+const KEY_ROWS = [
+  "QWERTYUIOP".split(""),
+  "ASDFGHJKL".split(""),
+  ["ENTER", ..."ZXCVBNM", "BACKSPACE"],
+];
+let dictionariesPromise;
 
-async function readDict(file){
-    try{
-        const response = await fetch(file);
-        if(!response.ok){
-            throw new Error('Failed to fetch ${file}: ${response.status} ${response.statusText}');
+function loadDictionaries() {
+  // Share one request pair across mounts, including React StrictMode checks.
+  dictionariesPromise ??= Promise.all(
+    ["answers", "guesses"].map(async (name) => {
+      const response = await fetch(
+        new URL(`../../dictionary/${name}.txt`, import.meta.url),
+      );
+      if (!response.ok)
+        throw new Error(`Failed to fetch ${name}: ${response.status}`);
+      return parseWords(await response.text());
+    }),
+  ).then(([answers, guesses]) => {
+    if (!answers.length || !guesses.length) throw new Error("Empty word list");
+    return { answers, dictionary: new Set([...answers, ...guesses]) };
+  });
+  return dictionariesPromise;
+}
+
+function useGame() {
+  const [state, dispatch] = useReducer(gameReducer, undefined, createGame);
+  const [keyPresses, setKeyPresses] = useState({});
+  const lists = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    loadDictionaries()
+      .then((result) => {
+        if (!active) return;
+        lists.current = result;
+        dispatch({ type: "START", answer: chooseAnswer(result.answers) });
+      })
+      .catch((error) => {
+        if (active) {
+          console.error(error);
+          dispatch({ type: "LOAD_ERROR" });
         }
-        const text = await response.text();
-        return text.toUpperCase();
-    }catch(error){
-        console.log('Error reading dictionary files:', error);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (state.status !== "revealing") return;
+    const timer = setTimeout(
+      () => dispatch({ type: "REVEAL_FINISHED" }),
+      REVEAL_DURATION,
+    );
+    return () => clearTimeout(timer);
+  }, [state.status]);
+
+  const onKey = useCallback(
+    (key) => {
+      if (state.status !== "playing") return;
+      const normalized =
+        key.toUpperCase() === "DELETE" ? "BACKSPACE" : key.toUpperCase();
+      setKeyPresses((previous) => ({
+        ...previous,
+        [normalized]: (previous[normalized] ?? 0) + 1,
+      }));
+      dispatch({
+        type: "KEY",
+        key: normalized,
+        dictionary: lists.current?.dictionary,
+      });
+    },
+    [state.status],
+  );
+  const newGame = () => {
+    if (lists.current && ["won", "lost"].includes(state.status)) {
+      setKeyPresses({});
+      dispatch({ type: "START", answer: chooseAnswer(lists.current.answers) });
     }
+  };
+  return { state, onKey, newGame, keyPresses };
 }
 
-async function onStart(){
-    const answers = '/dictionary/answers.txt';
-    const guesses = '/dictionary/guesses.txt';
-    const [answersText, guessesText] = await Promise.all([
-        readDict(answers),
-        readDict(guesses)
-    ]);
-    ansDictionary = answersText.split(/\s+/);
-    dictionary = new Set([...answersText.split(/\s+/), ...(guessesText.split(/\s+/))]);
+function Board({ state }) {
+  return h(
+    "div",
+    {
+      className: "grid-container",
+      role: "group",
+      "aria-label": "Wordle board",
+    },
+    Array.from({ length: MAX_GUESSES }, (_, row) => {
+      const entry = state.entries[row];
+      const word =
+        entry?.word ?? (row === state.entries.length ? state.guess : "");
+      const revealing =
+        state.status === "revealing" && row === state.entries.length - 1;
+      return h(
+        "div",
+        {
+          className: "board-row",
+          key: row,
+          role: "group",
+          "aria-label": `Guess ${row + 1}`,
+        },
+        Array.from({ length: WORD_LENGTH }, (_, col) => {
+          const letter = word[col] ?? "";
+          const result = entry ? STATE_NAMES[entry.scores[col]] : "";
+          return h(
+            "div",
+            {
+              key: `${col}-${letter}-${Boolean(entry)}`,
+              className: `cell${letter ? " filled" : ""}${revealing ? " revealing" : ""}${letter && !entry ? " typing" : ""}`,
+              "data-state": result || undefined,
+              "aria-label": `${letter || "Empty"}${result ? `, ${result}` : ""}`,
+              style: {
+                "--flip-delay": `${col * FLIP_DELAY}ms`,
+                "--flip-duration": `${FLIP_DURATION}ms`,
+              },
+            },
+            letter,
+          );
+        }),
+      );
+    }),
+  );
 }
 
-async function reloadAfterStart(){
-    await onStart();
-    reload();
+function Keyboard({ keyboard, onKey, disabled, keyPresses }) {
+  return h(
+    "div",
+    { className: "keyboard", "aria-label": "On-screen keyboard" },
+    KEY_ROWS.map((row, index) =>
+      h(
+        "div",
+        { className: "keyboard_row", key: index },
+        row.map((key) =>
+          h(
+            "button",
+            {
+              key,
+              type: "button",
+              className: `key${key.length > 1 ? " wide-key" : ""}`,
+              "data-state":
+                keyboard[key] === undefined
+                  ? undefined
+                  : STATE_NAMES[keyboard[key]],
+              "aria-label": `${key === "BACKSPACE" ? "Backspace" : key}${keyboard[key] === undefined ? "" : `, ${STATE_NAMES[keyboard[key]]}`}`,
+              disabled,
+              onClick: () => onKey(key),
+            },
+            key === "BACKSPACE" ? h(Icon, { name: "backspace" }) : key,
+            keyPresses[key] &&
+              h("span", {
+                key: keyPresses[key],
+                className: "key-press-highlight",
+                "aria-hidden": true,
+              }),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
-function reload(){
-    let index = Math.floor(Math.random() * 2315);
-    ans = ansDictionary[index];
-    console.log("Answer is: " + ans);
-    guess = "";
-
-    row = 1; col = 1;
-    let cells = document.querySelectorAll('.cell');
-    let keys = document.querySelectorAll('.key');
-    cells.forEach(function(cell){
-        cell.style.outlineColor = incorrect;
-        cell.style.backgroundColor = '#0f0f0f';
-    });
-    keys.forEach(function(key){
-        key.style.backgroundColor = 'grey';
-        key.style.outlineColor = 'grey';
-    });
-    for(let i = 0; i < 5; ++i){
-        if(map.has(ans[i])){
-            map.set(ans[i], map.get(ans[i]) + 1);
-        }else{
-            map.set(ans[i], 1);
-        }
-    }
+function Statistics({ statistics, state }) {
+  const largestCount = Math.max(1, ...statistics.distribution);
+  const metrics = [
+    [statistics.played, "Played"],
+    [`${winRate(statistics)}%`, "Win rate"],
+    [statistics.currentStreak, "Current streak"],
+    [statistics.maxStreak, "Max streak"],
+  ];
+  return h(
+    "section",
+    { className: "statistics", "aria-label": "Lifetime statistics" },
+    h(
+      "dl",
+      { className: "statistics-metrics" },
+      metrics.map(([value, label]) =>
+        h(
+          "div",
+          { className: "statistics-metric", key: label },
+          h("dt", null, label),
+          h("dd", null, value),
+        ),
+      ),
+    ),
+    h("h3", { id: "distribution-title" }, "Guess distribution"),
+    h(
+      "ol",
+      {
+        className: "guess-distribution",
+        "aria-labelledby": "distribution-title",
+      },
+      statistics.distribution.map((count, index) =>
+        h(
+          "li",
+          {
+            key: index,
+            className: "distribution-row",
+            "aria-label": `${index + 1} ${index === 0 ? "guess" : "guesses"}: ${count} ${count === 1 ? "win" : "wins"}`,
+          },
+          h(
+            "span",
+            { className: "distribution-label", "aria-hidden": true },
+            index + 1,
+          ),
+          h(
+            "div",
+            { className: "distribution-track", "aria-hidden": true },
+            h("div", {
+              className: `distribution-bar${state.status === "won" && state.entries.length === index + 1 ? " latest-win" : ""}`,
+              style: { width: `${(count / largestCount) * 100}%` },
+            }),
+            h("span", { className: "distribution-count" }, count),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
-document.addEventListener('keydown', function(event){
-    if((event.key.length == 1 && event.key.match(/[a-z]/i))
-      || event.key == 'Backspace' || event.key == 'Enter'){
-        updateCell(event.key.toUpperCase());
-    }
-});
-
-document.querySelectorAll(".key").forEach(function(key){
-    key.addEventListener("click", function(){
-        updateCell(key.id.toUpperCase());
-    });
-});
-
-function updateCell(e){
-    if(gameover) return;
-    if(checkingWord) return;
-    if(e.length == 1){
-        if(col < 6){
-            let cell = document.getElementById(row + '' + col);
-            cell.innerHTML = e;
-            if(cell.classList.contains('animate-grow-shrink')){
-                cell.classList.remove('animate-grow-shrink');
-            }
-            void cell.offsetWidth;
-            cell.classList.add('animate-grow-shrink');
-            cell.style.outlineColor = 'grey';
-            ++col;
-            guess += e;
-        }
-    }else if(e == "ENTER"){
-        if(guess.length == 5) {checkWord();}
-    }else{
-        if(col > 1){
-            --col;
-            let cell = document.getElementById(row + '' + col);
-            cell.innerHTML = "&nbsp";
-            cell.style.outlineColor = incorrect;
-            guess = guess.substr(0, col-1);
-        }
-    }
+function GameDialog({ kind, onClose, state, statistics, onNewGame }) {
+  const ref = useRef(null);
+  const finished = ["won", "lost"].includes(state.status);
+  useEffect(() => {
+    ref.current.showModal();
+    ref.current.focus({ preventScroll: true });
+  }, []);
+  return h(
+    "dialog",
+    {
+      ref,
+      tabIndex: -1,
+      className: "game-dialog",
+      "aria-labelledby": "dialog-title",
+      onClose,
+      onClick: (event) => {
+        if (event.target === ref.current) ref.current.close();
+      },
+    },
+    h(
+      "h2",
+      { id: "dialog-title" },
+      kind === "info" ? "How to play" : "Statistics",
+    ),
+    kind === "stats" && finished && h("p", { role: "status" }, state.message),
+    kind === "info"
+      ? h(
+          "div",
+          null,
+          h("p", null, "Guess the hidden five-letter word in six tries."),
+          h(
+            "p",
+            null,
+            "Use your keyboard or tap the letters, then press Enter.",
+          ),
+          h(
+            "p",
+            null,
+            h("span", { className: "legend correct" }, "Green"),
+            " means the letter is in the correct spot.",
+          ),
+          h(
+            "p",
+            null,
+            h("span", { className: "legend present" }, "Yellow"),
+            " means the letter is in a different spot.",
+          ),
+          h(
+            "p",
+            null,
+            h("span", { className: "legend absent" }, "Gray"),
+            " means no unmatched copies of that letter remain.",
+          ),
+        )
+      : h(Statistics, { statistics, state }),
+    h(
+      "div",
+      { className: "dialog-actions" },
+      h(
+        "button",
+        {
+          type: "button",
+          className: "action-button",
+          onClick: () => ref.current.close(),
+        },
+        "Close",
+      ),
+      kind === "stats" &&
+        finished &&
+        h(
+          "button",
+          {
+            type: "button",
+            className: "action-button new-game-button",
+            onClick: () => {
+              ref.current.close();
+              onNewGame();
+            },
+          },
+          "New game",
+        ),
+    ),
+  );
 }
 
-async function checkWord(){
-    console.log("Guessed word is: " + guess);
-    if(!dictionary.has(guess)){
-        alert('Not in word list');
+function App() {
+  const { state, onKey, newGame, keyPresses } = useGame();
+  const [dialog, setDialog] = useState(null);
+  const [statistics, setStatistics] = useState(loadStatistics);
+  const resultRecorded = useRef(false);
+
+  useEffect(() => {
+    if (state.status === "playing") resultRecorded.current = false;
+    if (!["won", "lost"].includes(state.status) || resultRecorded.current)
+      return;
+    // Dialog changes and repeated renders must not record the same game twice.
+    resultRecorded.current = true;
+    const next = recordResult(statistics, state.status, state.entries.length);
+    setStatistics(next);
+    saveStatistics(next);
+    setDialog("stats");
+  }, [state.status, state.entries.length, statistics]);
+
+  useEffect(() => {
+    const handleKey = (event) => {
+      if (dialog) {
+        // Enter must not activate a dialog button left focused by the browser.
+        if (event.key === "Enter") event.preventDefault();
         return;
-    }
-    checkingWord = true;
-    let colorArray = new Array(5).fill(-1);
-    let ans_map = new Map(map);
-    for(let i = 0; i < 5; ++i){
-        if(guess[i] == ans[i]){
-            ans_map.set(guess[i], ans_map.get(guess[i]) - 1);
-            colorArray[i] = 2;
-        }else if(!ans_map.has(guess[i])){
-            colorArray[i] = 0;
-        }
-    }
-    for(let i = 0; i < 5; ++i){
-        if(colorArray[i] == -1){
-            if(ans_map.get(guess[i]) <= 0) {
-                colorArray[i] = 0;
-            }else{
-                ans_map.set(guess[i], ans_map.get(guess[i]) - 1);
-                colorArray[i] = 1;
-            }
-        }
-    }
-    await updateColors(colorArray);
-    checkingWord = false;
-    if(guess == ans) {
-        let messageArr;
-        if(row != 6){
-            messageArr = ['Fantastic', 'Awesome', 'Great', 'Fabulous', 'Amazing',
-                'Stupendous', 'Brilliant', 'Insane', 'Excellent', 'Nice'
-            ]
-        }else{
-            messageArr = ['Phew.', 'That was close.', 'Clutch.', 'Wow.', 'Insane.',
-                'Crazy.', 'OMG.'
-            ]
-        }
-        console.log("You Win!");
-        gameover = true;
+      }
+      if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing)
         return;
-    }
-
-    if(row == 6) {
-        console.log("Game Over. You lost.");
-        gameover = true;
+      if (
+        event.target.closest(
+          'input, textarea, select, [contenteditable="true"]',
+        )
+      )
         return;
-    }
+      if (
+        /^[a-z]$/i.test(event.key) ||
+        ["Enter", "Backspace", "Delete"].includes(event.key)
+      ) {
+        event.preventDefault();
+        onKey(event.key);
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onKey, dialog]);
 
-    row++;
-    col = 1;
-    guess = "";
+  return h(
+    "main",
+    {
+      onMouseDownCapture: (event) => {
+        if (event.target.closest("button")) event.preventDefault();
+      },
+      onClickCapture: (event) => {
+        event.target.closest("button")?.blur();
+      },
+    },
+    h(
+      "header",
+      { className: "header" },
+      h("h1", { id: "Teddle-title" }, "Wordle"),
+      h(
+        "div",
+        { className: "top_buttons" },
+        ...["info", "stats"].map((kind) =>
+          h(
+            "button",
+            {
+              key: kind,
+              type: "button",
+              className: "icon-button",
+              "aria-label": kind === "info" ? "How to play" : "Statistics",
+              onClick: () => setDialog(kind),
+            },
+            h(Icon, { name: kind, size: 30 }),
+          ),
+        ),
+      ),
+    ),
+    h(Board, { state }),
+    h(
+      "p",
+      { className: "game-message", role: "status", "aria-live": "polite" },
+      state.status === "loading"
+        ? "Loading word lists…"
+        : state.message || "\u00a0",
+    ),
+    h(Keyboard, {
+      keyboard: state.keyboard,
+      keyPresses,
+      onKey,
+      disabled: state.status !== "playing",
+    }),
+    dialog &&
+      h(GameDialog, {
+        kind: dialog,
+        state,
+        statistics,
+        onClose: () => setDialog(null),
+        onNewGame: newGame,
+      }),
+  );
 }
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function updateColors(arr){
-    let keyIndex = new Array();
-    for(let i = 0; i < 5; ++i){
-        let id = row + '' + (i + 1);
-        let cell = document.getElementById(id);
-        let index = guess[i].charCodeAt(0) - 65;
-        if(cell.classList.contains('animate-flip')){
-            cell.classList.remove('animate-flip');
-        }
-        void cell.offsetWidth;
-        cell.classList.add('animate-flip');
-        await delay(250);
-        cell.style.animationPlayState = 'paused';
-        if(arr[i] == 2){
-            cell.style.backgroundColor = correct;
-            cell.style.outlineColor = correct;
-            if(keyboardArr[index] != 2){
-                keyboardArr[index] = 2;
-                keyIndex.push(index);
-            }
-        }else if(arr[i] == 1){
-            cell.style.backgroundColor = partial;
-            cell.style.outlineColor = partial;
-            if(keyboardArr[index] != 2 && keyboardArr[index] != 1){
-                keyboardArr[index] = 1;
-                keyIndex.push(index);
-            }
-        }else{
-            cell.style.backgroundColor = incorrect;
-            cell.style.outlineColor = incorrect;
-            if(keyboardArr[index] == -1){
-                keyboardArr[index] = 0;
-                keyIndex.push(index);
-            }
-        }
-        cell.style.animationPlayState = 'running';
-        await delay(125);
-    }
-    for(let i = 0; i < keyIndex.length; ++i){
-        let id = String.fromCharCode(keyIndex[i] + 65);
-        let ind = keyboardArr[keyIndex[i]];
-        let key = document.getElementById(id);
-        if(ind == 2){
-            key.style.backgroundColor = correct;
-            key.style.outlineColor = correct;
-        }else if(ind == 1){
-            key.style.backgroundColor = partial;
-            key.style.outlineColor = partial;
-        }else{
-            key.style.backgroundColor = incorrect;
-            key.style.outlineColor = incorrect;
-        }
-    }
-}
+createRoot(document.getElementById("root")).render(h(App));
